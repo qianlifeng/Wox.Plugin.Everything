@@ -24,6 +24,10 @@ interface BackendProbeDeps {
 interface SearchEverythingWithBackendDeps extends SearchEverythingDeps, BackendProbeDeps {}
 
 export type EverythingBackend = "sdk3" | "sdk2" | "unknown"
+export interface EverythingSearchTrace {
+  backend?: EverythingBackend
+  events: string[]
+}
 
 const BACKEND_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
@@ -37,7 +41,17 @@ export function configureEverythingSearch(pluginDirectory: string): void {
   preferredBackend = "unknown"
 }
 
-export async function searchEverything(search: string, limit: number): Promise<EverythingSearchResult[]> {
+function addTrace(trace: EverythingSearchTrace | undefined, event: string): void {
+  if (trace) {
+    trace.events.push(event)
+  }
+}
+
+function formatTraceError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+export async function searchEverything(search: string, limit: number, trace?: EverythingSearchTrace): Promise<EverythingSearchResult[]> {
   if (process.platform !== "win32" || process.arch !== "x64") {
     throw new EverythingUnavailableError("Everything search only supports Windows x64")
   }
@@ -45,12 +59,57 @@ export async function searchEverything(search: string, limit: number): Promise<E
     throw new Error("Everything search is not configured")
   }
 
-  return searchEverythingWithBackendCache(search, limit, {
-    searchWithSdk3: (nextSearch: string, nextLimit: number) => searchWithSdk3(nativeDirectory, nextSearch, nextLimit),
-    searchWithSdk2: (nextSearch: string, nextLimit: number) => searchWithSdk2(nativeDirectory, nextSearch, nextLimit),
-    probeSdk3: () => probeSdk3(nativeDirectory),
-    probeSdk2: () => probeSdk2(nativeDirectory)
-  })
+  return searchEverythingWithBackendCache(
+    search,
+    limit,
+    {
+      searchWithSdk3: async (nextSearch: string, nextLimit: number) => {
+        const startedAt = Date.now()
+        try {
+          const results = await searchWithSdk3(nativeDirectory, nextSearch, nextLimit)
+          addTrace(trace, `sdk3 search ok ${Date.now() - startedAt}ms results=${results.length}`)
+          return results
+        } catch (error) {
+          addTrace(trace, `sdk3 search error ${Date.now() - startedAt}ms ${formatTraceError(error)}`)
+          throw error
+        }
+      },
+      searchWithSdk2: async (nextSearch: string, nextLimit: number) => {
+        const startedAt = Date.now()
+        try {
+          const results = await searchWithSdk2(nativeDirectory, nextSearch, nextLimit)
+          addTrace(trace, `sdk2 search ok ${Date.now() - startedAt}ms results=${results.length}`)
+          return results
+        } catch (error) {
+          addTrace(trace, `sdk2 search error ${Date.now() - startedAt}ms ${formatTraceError(error)}`)
+          throw error
+        }
+      },
+      probeSdk3: async () => {
+        const startedAt = Date.now()
+        try {
+          const available = await probeSdk3(nativeDirectory)
+          addTrace(trace, `sdk3 probe ${available ? "hit" : "miss"} ${Date.now() - startedAt}ms`)
+          return available
+        } catch (error) {
+          addTrace(trace, `sdk3 probe error ${Date.now() - startedAt}ms ${formatTraceError(error)}`)
+          throw error
+        }
+      },
+      probeSdk2: async () => {
+        const startedAt = Date.now()
+        try {
+          const available = await probeSdk2(nativeDirectory)
+          addTrace(trace, `sdk2 probe ${available ? "hit" : "miss"} ${Date.now() - startedAt}ms`)
+          return available
+        } catch (error) {
+          addTrace(trace, `sdk2 probe error ${Date.now() - startedAt}ms ${formatTraceError(error)}`)
+          throw error
+        }
+      }
+    },
+    trace
+  )
 }
 
 export async function searchEverythingWithFallback(search: string, limit: number, deps: SearchEverythingDeps): Promise<EverythingSearchResult[]> {
@@ -79,13 +138,16 @@ async function detectEverythingBackend(deps: BackendProbeDeps): Promise<Everythi
   return "unknown"
 }
 
-export async function refreshEverythingBackend(deps: BackendProbeDeps): Promise<EverythingBackend> {
+export async function refreshEverythingBackend(deps: BackendProbeDeps, trace?: EverythingSearchTrace): Promise<EverythingBackend> {
   if (backendRefreshPromise) {
+    addTrace(trace, "backend refresh join")
     return backendRefreshPromise
   }
 
   backendRefreshPromise = (async () => {
+    const startedAt = Date.now()
     preferredBackend = await detectEverythingBackend(deps)
+    addTrace(trace, `backend refresh selected=${preferredBackend} ${Date.now() - startedAt}ms`)
     return preferredBackend
   })()
 
@@ -103,13 +165,22 @@ function searchWithBackend(backend: Exclude<EverythingBackend, "unknown">, searc
   return deps.searchWithSdk2(search, limit)
 }
 
-export async function searchEverythingWithBackendCache(search: string, limit: number, deps: SearchEverythingWithBackendDeps): Promise<EverythingSearchResult[]> {
+export async function searchEverythingWithBackendCache(search: string, limit: number, deps: SearchEverythingWithBackendDeps, trace?: EverythingSearchTrace): Promise<EverythingSearchResult[]> {
   let backend = preferredBackend
   if (backend === "unknown") {
-    backend = await refreshEverythingBackend(deps)
+    addTrace(trace, "backend cache miss")
+    backend = await refreshEverythingBackend(deps, trace)
+  } else {
+    addTrace(trace, `backend cache hit ${backend}`)
   }
   if (backend === "unknown") {
+    if (trace) {
+      trace.backend = "unknown"
+    }
     throw createBackendUnavailableError()
+  }
+  if (trace) {
+    trace.backend = backend
   }
 
   try {
@@ -120,9 +191,16 @@ export async function searchEverythingWithBackendCache(search: string, limit: nu
     }
 
     preferredBackend = "unknown"
-    const refreshedBackend = await refreshEverythingBackend(deps)
+    addTrace(trace, `backend retry after ${backend} unavailable`)
+    const refreshedBackend = await refreshEverythingBackend(deps, trace)
     if (refreshedBackend === "unknown") {
+      if (trace) {
+        trace.backend = "unknown"
+      }
       throw createBackendUnavailableError()
+    }
+    if (trace) {
+      trace.backend = refreshedBackend
     }
 
     return searchWithBackend(refreshedBackend, search, limit, deps)

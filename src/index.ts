@@ -1,28 +1,15 @@
 import path from "path"
 import { Context, Plugin, PluginInitParams, PublicAPI, Query, Result, WoxImage } from "@wox-launcher/wox-plugin"
-import { configureEverythingSearch, disposeEverythingSearch, searchEverything, startEverythingBackendRefresh } from "./everything/search"
+import { configureEverythingSearch, disposeEverythingSearch, EverythingSearchTrace, searchEverything, startEverythingBackendRefresh } from "./everything/search"
 import { EverythingSearchResult } from "./everything/types"
 import { openPath } from "./open"
 
-const DEFAULT_LIMIT = 50
-const IMAGE_THUMBNAIL_EXTENSIONS = new Set([
-  ".avif",
-  ".bmp",
-  ".gif",
-  ".heic",
-  ".heif",
-  ".ico",
-  ".jpeg",
-  ".jpg",
-  ".png",
-  ".svg",
-  ".tif",
-  ".tiff",
-  ".webp"
-])
+const DEFAULT_LIMIT = 30
+const SLOW_QUERY_LOG_MS = 150
+const IMAGE_THUMBNAIL_EXTENSIONS = new Set([".avif", ".bmp", ".gif", ".heic", ".heif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".tif", ".tiff", ".webp"])
 
 interface PluginDeps {
-  searchEverything: (search: string, limit: number) => Promise<EverythingSearchResult[]>
+  searchEverything: (search: string, limit: number, trace?: EverythingSearchTrace) => Promise<EverythingSearchResult[]>
   openPath: (targetPath: string) => Promise<void>
   startEverythingBackendRefresh: () => void
   disposeEverythingSearch: () => void
@@ -44,12 +31,25 @@ function shouldUseImageThumbnail(filePath: string): boolean {
   return IMAGE_THUMBNAIL_EXTENSIONS.has(path.win32.extname(filePath).toLowerCase())
 }
 
-function createFileIcon(filePath: string): WoxImage {
-  // Wox core supports "fileicon", but the current Node SDK types have not caught up yet.
-  return { ImageType: "fileicon", ImageData: filePath } as unknown as WoxImage
+function createFileIcon(): WoxImage {
+  return {
+    ImageType: "emoji",
+    ImageData: "📄"
+  }
+}
+
+function createFolderIcon(): WoxImage {
+  return {
+    ImageType: "emoji",
+    ImageData: "📁"
+  }
 }
 
 function createResultIcon(entry: EverythingSearchResult): WoxImage {
+  if (entry.isDirectory) {
+    return createFolderIcon()
+  }
+
   if (!entry.isDirectory && shouldUseImageThumbnail(entry.path)) {
     return {
       ImageType: "absolute",
@@ -57,7 +57,26 @@ function createResultIcon(entry: EverythingSearchResult): WoxImage {
     }
   }
 
-  return createFileIcon(entry.path)
+  return createFileIcon()
+}
+
+async function logQueryDiagnostics(
+  api: PublicAPI | undefined,
+  ctx: Context,
+  search: string,
+  elapsedMs: number,
+  resultCount: number,
+  trace: EverythingSearchTrace,
+  errorMessage?: string
+): Promise<void> {
+  if (!api) {
+    return
+  }
+
+  const reason = errorMessage ? `error=${JSON.stringify(errorMessage)}` : `results=${resultCount}`
+  const traceSummary = trace.events.length > 0 ? trace.events.join(" | ") : "none"
+  const backend = trace.backend ?? "unknown"
+  await api.Log(ctx, errorMessage ? "Error" : "Info", `Everything query diagnostics search=${JSON.stringify(search)} elapsed=${elapsedMs}ms backend=${backend} ${reason} trace=${traceSummary}`)
 }
 
 export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
@@ -87,8 +106,14 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
         return []
       }
 
+      const trace: EverythingSearchTrace = { events: [] }
+      const startedAt = Date.now()
       try {
-        const entries = await deps.searchEverything(query.Search, DEFAULT_LIMIT)
+        const entries = await deps.searchEverything(query.Search, DEFAULT_LIMIT, trace)
+        const elapsedMs = Date.now() - startedAt
+        if (elapsedMs >= SLOW_QUERY_LOG_MS) {
+          await logQueryDiagnostics(api, ctx, query.Search, elapsedMs, entries.length, trace)
+        }
         return entries.map((entry: EverythingSearchResult, index: number) => ({
           Title: path.win32.basename(entry.path),
           SubTitle: entry.path,
@@ -116,7 +141,9 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
         }))
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
+        const elapsedMs = Date.now() - startedAt
         if (api) {
+          await logQueryDiagnostics(api, ctx, query.Search, elapsedMs, 0, trace, message)
           await api.Log(ctx, "Error", message)
         }
         return [createErrorResult(message)]

@@ -72,21 +72,21 @@ describe("Everything plugin", () => {
 
     const results = await currentPlugin.query(ctx, createQuery("file"))
 
-    expect(searchEverything).toHaveBeenCalledWith("file", 50)
+    expect(searchEverything).toHaveBeenCalledWith("file", 30, expect.objectContaining({ events: [] }))
     expect(results).toHaveLength(3)
     expect(results[0]?.Title).toBe("file.txt")
     expect(results[0]?.SubTitle).toBe("C:\\Docs\\file.txt")
     expect(results[0]?.Score).toBeGreaterThan(results[1]?.Score ?? 0)
     expect(results[0]?.Icon).toEqual({
-      ImageType: "fileicon",
-      ImageData: "C:\\Docs\\file.txt"
+      ImageType: "emoji",
+      ImageData: "📄"
     })
     expect(results[0]?.Actions?.[0]?.Name).toBe("Open")
     expect(results[1]?.Title).toBe("Folder")
     expect(results[1]?.SubTitle).toBe("C:\\Docs\\Folder")
     expect(results[1]?.Icon).toEqual({
-      ImageType: "fileicon",
-      ImageData: "C:\\Docs\\Folder"
+      ImageType: "emoji",
+      ImageData: "📁"
     })
     expect(results[2]?.Title).toBe("photo.jpg")
     expect(results[2]?.Icon).toEqual({

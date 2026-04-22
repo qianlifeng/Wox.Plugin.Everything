@@ -7,8 +7,6 @@ const EVERYTHING2_ERROR_IPC = 2
 const EVERYTHING2_MAX_ALL = 0xffffffff
 const EVERYTHING2_REQUEST_FILE_NAME = 0x00000001
 const EVERYTHING2_REQUEST_PATH = 0x00000002
-const EVERYTHING2_REQUEST_SIZE = 0x00000010
-const EVERYTHING2_REQUEST_DATE_MODIFIED = 0x00000040
 const EVERYTHING2_SORT_NAME_ASCENDING = 1
 const MAX_PATH_CHARS = 32768
 
@@ -119,7 +117,7 @@ export async function searchWithSdk2(nativeDirectory: string, search: string, li
   const dllPath = path.join(nativeDirectory, "Everything64.dll")
   const bindings = getBindings(dllPath)
 
-  configureEverything2Query(bindings, search, limit, EVERYTHING2_REQUEST_FILE_NAME | EVERYTHING2_REQUEST_PATH | EVERYTHING2_REQUEST_SIZE | EVERYTHING2_REQUEST_DATE_MODIFIED)
+  configureEverything2Query(bindings, search, limit, EVERYTHING2_REQUEST_FILE_NAME | EVERYTHING2_REQUEST_PATH)
 
   const ok = bindings.query(true)
   if (!ok) {

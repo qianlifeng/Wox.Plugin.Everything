@@ -3,8 +3,6 @@ import path from "path"
 import { EverythingUnavailableError } from "./search"
 import { EverythingSearchResult } from "./types"
 
-const EVERYTHING3_PROPERTY_ID_SIZE = 2
-const EVERYTHING3_PROPERTY_ID_DATE_MODIFIED = 5
 const EVERYTHING3_PROPERTY_ID_PATH_AND_NAME = 240
 const MAX_PATH_CHARS = 32768
 
@@ -146,8 +144,6 @@ export async function searchWithSdk3(nativeDirectory: string, search: string, li
       bindings.setSearchViewportCount(searchState, limit)
     }
     bindings.addSearchPropertyRequest(searchState, EVERYTHING3_PROPERTY_ID_PATH_AND_NAME)
-    bindings.addSearchPropertyRequest(searchState, EVERYTHING3_PROPERTY_ID_SIZE)
-    bindings.addSearchPropertyRequest(searchState, EVERYTHING3_PROPERTY_ID_DATE_MODIFIED)
 
     const resultList = bindings.search(client, searchState)
     let finalResultList = resultList
