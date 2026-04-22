@@ -1,20 +1,23 @@
 {
-  "Id": "{{.Id}}",
+  "Id": "6987b7b1-89da-41ef-bab3-d1ba2e3daba0",
   "TriggerKeywords": [
-    "{{.TriggerKeyword}}"
+    "e"
   ],
-  "Name": "{{.Name}}",
-  "Description": "{{.Description}}",
-  "Author": "{{.Author}}",
-  "Version": "0.0.2",
+  "Name": "Everything",
+  "Description": "Search files with Everything on Windows",
+  "Author": "qianlifeng",
+  "Version": "0.0.5",
   "MinWoxVersion": "2.0.0",
   "Runtime": "nodejs",
-  "Website": "{{.Website}}",
+  "Website": "https://github.com/qianlifeng/Wox.Plugin.Everything",
   "Entry": "index.js",
-  "Icon": "relative:images/app.svg",
+  "Icon": "relative:images/app.png",
+  "Features": [
+    {
+      "Name": "ignoreAutoScore"
+    }
+  ],
   "SupportedOS": [
-    "windows",
-    "linux",
-    "darwin"
+    "Windows"
   ]
 }

@@ -1,9 +1,10 @@
 .PHONY: help init check-init check-dev-deps install reinstall clean lint format build test package dev
 
-PLUGIN_NAME := {{.Name}}
+PLUGIN_NAME := everything
 
 DIST_DIR := dist
 SRC_DIR := src
+NATIVE_DIR := native
 PYTHON ?= python3
 ESLINT := pnpm exec eslint
 PRETTIER := pnpm exec prettier
@@ -69,11 +70,14 @@ else
 endif
 	$(NCC) build $(SRC_DIR)/index.ts -o $(DIST_DIR)
 	$(BABEL) $(DIST_DIR) --out-dir $(DIST_DIR)
+	node scripts/prune-koffi-build.js $(DIST_DIR)/build/koffi win32_x64
 ifeq ($(OS),Windows_NT)
 	$(POWERSHELL) "Copy-Item 'images' -Destination '$(DIST_DIR)' -Recurse"
+	$(POWERSHELL) "Copy-Item '$(NATIVE_DIR)' -Destination '$(DIST_DIR)' -Recurse"
 	$(POWERSHELL) "Copy-Item 'plugin.json' -Destination '$(DIST_DIR)'"
 else
 	cp -r images $(DIST_DIR)
+	cp -r $(NATIVE_DIR) $(DIST_DIR)
 	cp plugin.json $(DIST_DIR)
 endif
 
@@ -81,10 +85,9 @@ test: check-init check-dev-deps
 	$(JEST)
 
 package: check-init build
+	$(PYTHON) scripts/package_wox_plugin.py $(DIST_DIR) wox.plugin.$(PLUGIN_NAME).wox
 ifeq ($(OS),Windows_NT)
-	$(POWERSHELL) "if (Test-Path 'wox.plugin.$(PLUGIN_NAME).zip') { Remove-Item -Force 'wox.plugin.$(PLUGIN_NAME).zip' }; if (Test-Path 'wox.plugin.$(PLUGIN_NAME).wox') { Remove-Item -Force 'wox.plugin.$(PLUGIN_NAME).wox' }; Compress-Archive -Path '$(DIST_DIR)\\*' -DestinationPath 'wox.plugin.$(PLUGIN_NAME).zip'; Move-Item 'wox.plugin.$(PLUGIN_NAME).zip' 'wox.plugin.$(PLUGIN_NAME).wox'"
 	$(POWERSHELL) "if (Test-Path '$(DIST_DIR)') { Remove-Item -Recurse -Force '$(DIST_DIR)' }"
 else
-	cd $(DIST_DIR) && zip -r ../wox.plugin.$(PLUGIN_NAME).wox .
 	rm -rf $(DIST_DIR)
 endif
