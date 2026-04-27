@@ -3,10 +3,10 @@
   "TriggerKeywords": [
     "e"
   ],
-  "Name": "Everything",
-  "Description": "Search files with Everything on Windows",
+  "Name": "i18n:plugin_name",
+  "Description": "i18n:plugin_description",
   "Author": "qianlifeng",
-  "Version": "0.0.8",
+  "Version": "0.0.9",
   "MinWoxVersion": "2.0.0",
   "Runtime": "nodejs",
   "Website": "https://github.com/qianlifeng/Wox.Plugin.Everything",
@@ -19,5 +19,21 @@
   ],
   "SupportedOS": [
     "Windows"
-  ]
+  ],
+  "I18n": {
+    "en_US": {
+      "plugin_name": "Everything",
+      "plugin_description": "Search files with Everything on Windows",
+      "open": "Open",
+      "open_containing_folder": "Open Containing Folder",
+      "search_error": "Everything Search Error"
+    },
+    "zh_CN": {
+      "plugin_name": "Everything",
+      "plugin_description": "在 Windows 上使用 Everything 搜索文件",
+      "open": "打开",
+      "open_containing_folder": "打开所在文件夹",
+      "search_error": "Everything 搜索错误"
+    }
+  }
 }

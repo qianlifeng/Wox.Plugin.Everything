@@ -67,7 +67,8 @@ describe("Everything plugin", () => {
       { path: "C:\\Docs\\photo.jpg", isDirectory: false }
     ])
     const openPath = jest.fn().mockResolvedValue(undefined)
-    const currentPlugin = createPlugin({ searchEverything, openPath })
+    const openContainingFolder = jest.fn().mockResolvedValue(undefined)
+    const currentPlugin = createPlugin({ searchEverything, openPath, openContainingFolder })
     const ctx = {} as Context
 
     const results = await currentPlugin.query(ctx, createQuery("file"))
@@ -81,7 +82,8 @@ describe("Everything plugin", () => {
       ImageType: "emoji",
       ImageData: "📄"
     })
-    expect(results[0]?.Actions?.[0]?.Name).toBe("Open")
+    expect(results[0]?.Actions?.[0]?.Name).toBe("i18n:open")
+    expect(results[0]?.Actions?.[0]?.IsDefault).toBe(true)
     expect(results[1]?.Title).toBe("Folder")
     expect(results[1]?.SubTitle).toBe("C:\\Docs\\Folder")
     expect(results[1]?.Icon).toEqual({
@@ -106,6 +108,20 @@ describe("Everything plugin", () => {
     })
 
     expect(openPath).toHaveBeenCalledWith("C:\\Docs\\file.txt")
+
+    const openContainingFolderAction = results[0]?.Actions?.find(action => action.Hotkey?.toLowerCase() === "ctrl+enter")
+    if (!openContainingFolderAction || !("Action" in openContainingFolderAction)) {
+      throw new Error("expected open containing folder action")
+    }
+
+    await openContainingFolderAction.Action(ctx, {
+      ResultId: "1",
+      ResultActionId: openContainingFolderAction.Id ?? "open-containing-folder",
+      ContextData: openContainingFolderAction.ContextData ?? {}
+    })
+
+    expect(openContainingFolderAction.Name).toBe("i18n:open_containing_folder")
+    expect(openContainingFolder).toHaveBeenCalledWith("C:\\Docs\\file.txt")
   })
 
   test("returns an explanatory error result when Everything is unavailable", async () => {
@@ -116,7 +132,7 @@ describe("Everything plugin", () => {
     const results = await currentPlugin.query(ctx, createQuery("file"))
 
     expect(results).toHaveLength(1)
-    expect(results[0]?.Title).toContain("Everything")
+    expect(results[0]?.Title).toBe("i18n:search_error")
     expect(results[0]?.SubTitle).toContain("Everything unavailable")
   })
 })

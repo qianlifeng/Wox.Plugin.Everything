@@ -2,7 +2,7 @@ import path from "path"
 import { Context, Plugin, PluginInitParams, PublicAPI, Query, Result, WoxImage } from "@wox-launcher/wox-plugin"
 import { configureEverythingSearch, disposeEverythingSearch, EverythingSearchTrace, searchEverything, startEverythingBackendRefresh } from "./everything/search"
 import { EverythingSearchResult } from "./everything/types"
-import { openPath } from "./open"
+import { openContainingFolder, openPath } from "./open"
 
 const DEFAULT_LIMIT = 30
 const SLOW_QUERY_LOG_MS = 150
@@ -11,13 +11,14 @@ const IMAGE_THUMBNAIL_EXTENSIONS = new Set([".avif", ".bmp", ".gif", ".heic", ".
 interface PluginDeps {
   searchEverything: (search: string, limit: number, trace?: EverythingSearchTrace) => Promise<EverythingSearchResult[]>
   openPath: (targetPath: string) => Promise<void>
+  openContainingFolder: (targetPath: string) => Promise<void>
   startEverythingBackendRefresh: () => void
   disposeEverythingSearch: () => void
 }
 
 function createErrorResult(message: string): Result {
   return {
-    Title: "Everything Search Error",
+    Title: "i18n:search_error",
     SubTitle: message,
     Icon: {
       ImageType: "relative",
@@ -84,6 +85,7 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
   const deps: PluginDeps = {
     searchEverything,
     openPath,
+    openContainingFolder,
     startEverythingBackendRefresh,
     disposeEverythingSearch,
     ...overrides
@@ -125,16 +127,24 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
           Actions: [
             {
               Id: "open",
-              Name: "Open",
+              Name: "i18n:open",
               IsDefault: true,
               ContextData: {
                 path: entry.path
               },
-              Action: async (actionCtx: Context, actionContext) => {
+              Action: async (_actionCtx: Context, actionContext) => {
                 await deps.openPath(actionContext.ContextData.path)
-                if (api) {
-                  await api.Log(actionCtx, "Info", `Opened ${actionContext.ContextData.path}`)
-                }
+              }
+            },
+            {
+              Id: "open-containing-folder",
+              Name: "i18n:open_containing_folder",
+              Hotkey: "ctrl+enter",
+              ContextData: {
+                path: entry.path
+              },
+              Action: async (_actionCtx: Context, actionContext) => {
+                await deps.openContainingFolder(actionContext.ContextData.path)
               }
             }
           ]
