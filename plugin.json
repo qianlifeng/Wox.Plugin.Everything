@@ -6,7 +6,7 @@
   "Name": "i18n:plugin_name",
   "Description": "i18n:plugin_description",
   "Author": "qianlifeng",
-  "Version": "0.0.10",
+  "Version": "0.1.0",
   "MinWoxVersion": "2.0.0",
   "Runtime": "nodejs",
   "Website": "https://github.com/qianlifeng/Wox.Plugin.Everything",

@@ -7,23 +7,22 @@ const EVERYTHING2_ERROR_IPC = 2
 const EVERYTHING2_MAX_ALL = 0xffffffff
 const EVERYTHING2_REQUEST_FILE_NAME = 0x00000001
 const EVERYTHING2_REQUEST_PATH = 0x00000002
-const EVERYTHING2_SORT_NAME_ASCENDING = 1
 const MAX_PATH_CHARS = 32768
 
 interface Everything2Bindings {
-  setSearch: (search: string) => number
-  setMatchPath: (enabled: boolean) => void
-  setMatchCase: (enabled: boolean) => void
-  setMatchWholeWord: (enabled: boolean) => void
-  setRegex: (enabled: boolean) => void
+  setSearch: (search: string) => void
+  setMatchPath: (enabled: number) => void
+  setMatchCase: (enabled: number) => void
+  setMatchWholeWord: (enabled: number) => void
+  setRegex: (enabled: number) => void
   setMax: (max: number) => void
-  setSort: (sortType: number) => void
+  setOffset: (offset: number) => void
   setRequestFlags: (flags: number) => void
-  query: (waitForResults: boolean) => boolean
+  query: (waitForResults: number) => number
   getLastError: () => number
   getNumResults: () => number
   getResultFullPathName: (index: number, output: [string], outputLength: number) => number
-  isFolderResult: (index: number) => boolean
+  isFolderResult: (index: number) => number
 }
 
 interface Everything2Module {
@@ -42,19 +41,19 @@ function getBindings(dllPath: string): Everything2Bindings {
   try {
     const library = koffi.load(dllPath)
     const bindings: Everything2Bindings = {
-      setSearch: library.func("int __stdcall Everything_SetSearchW(const char16_t *search)"),
-      setMatchPath: library.func("void __stdcall Everything_SetMatchPath(bool enabled)"),
-      setMatchCase: library.func("void __stdcall Everything_SetMatchCase(bool enabled)"),
-      setMatchWholeWord: library.func("void __stdcall Everything_SetMatchWholeWord(bool enabled)"),
-      setRegex: library.func("void __stdcall Everything_SetRegex(bool enabled)"),
+      setSearch: library.func("void __stdcall Everything_SetSearchW(const char16_t *search)"),
+      setMatchPath: library.func("void __stdcall Everything_SetMatchPath(int enabled)"),
+      setMatchCase: library.func("void __stdcall Everything_SetMatchCase(int enabled)"),
+      setMatchWholeWord: library.func("void __stdcall Everything_SetMatchWholeWord(int enabled)"),
+      setRegex: library.func("void __stdcall Everything_SetRegex(int enabled)"),
       setMax: library.func("void __stdcall Everything_SetMax(uint32_t max)"),
-      setSort: library.func("void __stdcall Everything_SetSort(uint32_t sortType)"),
+      setOffset: library.func("void __stdcall Everything_SetOffset(uint32_t offset)"),
       setRequestFlags: library.func("void __stdcall Everything_SetRequestFlags(uint32_t flags)"),
-      query: library.func("bool __stdcall Everything_QueryW(bool waitForResults)"),
+      query: library.func("int __stdcall Everything_QueryW(int waitForResults)"),
       getLastError: library.func("uint32_t __stdcall Everything_GetLastError(void)"),
       getNumResults: library.func("uint32_t __stdcall Everything_GetNumResults(void)"),
       getResultFullPathName: library.func("uint32_t __stdcall Everything_GetResultFullPathNameW(uint32_t index, _Out_ char16_t *output, uint32_t outputLength)"),
-      isFolderResult: library.func("bool __stdcall Everything_IsFolderResult(uint32_t index)")
+      isFolderResult: library.func("int __stdcall Everything_IsFolderResult(uint32_t index)")
     }
     sdk2BindingsCache.set(dllPath, { bindings, library })
     return bindings
@@ -78,13 +77,13 @@ function createEverything2QueryError(lastError: number): Error {
 }
 
 function configureEverything2Query(bindings: Everything2Bindings, search: string, limit: number, requestFlags: number): void {
-  bindings.setMatchPath(false)
-  bindings.setMatchCase(false)
-  bindings.setMatchWholeWord(false)
-  bindings.setRegex(false)
+  bindings.setMatchPath(0)
+  bindings.setMatchCase(0)
+  bindings.setMatchWholeWord(0)
+  bindings.setRegex(0)
   bindings.setSearch(search)
+  bindings.setOffset(0)
   bindings.setMax(limit > 0 ? limit : EVERYTHING2_MAX_ALL)
-  bindings.setSort(EVERYTHING2_SORT_NAME_ASCENDING)
   bindings.setRequestFlags(requestFlags)
 }
 
@@ -95,7 +94,7 @@ export async function probeSdk2(nativeDirectory: string): Promise<boolean> {
     const bindings = getBindings(dllPath)
     configureEverything2Query(bindings, "", 1, EVERYTHING2_REQUEST_FILE_NAME | EVERYTHING2_REQUEST_PATH)
 
-    const ok = bindings.query(true)
+    const ok = bindings.query(1)
     if (!ok) {
       const error = createEverything2QueryError(bindings.getLastError())
       if (error instanceof EverythingUnavailableError) {
@@ -119,7 +118,7 @@ export async function searchWithSdk2(nativeDirectory: string, search: string, li
 
   configureEverything2Query(bindings, search, limit, EVERYTHING2_REQUEST_FILE_NAME | EVERYTHING2_REQUEST_PATH)
 
-  const ok = bindings.query(true)
+  const ok = bindings.query(1)
   if (!ok) {
     throw createEverything2QueryError(bindings.getLastError())
   }
@@ -138,7 +137,7 @@ export async function searchWithSdk2(nativeDirectory: string, search: string, li
 
     results.push({
       path: filePath,
-      isDirectory: bindings.isFolderResult(index)
+      isDirectory: bindings.isFolderResult(index) !== 0
     })
   }
 

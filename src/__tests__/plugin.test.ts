@@ -124,6 +124,33 @@ describe("Everything plugin", () => {
     expect(openContainingFolder).toHaveBeenCalledWith("C:\\Docs\\file.txt")
   })
 
+  test("logs diagnostics when Everything returns no results", async () => {
+    const searchEverything = jest.fn().mockResolvedValue([])
+    const currentPlugin = createPlugin({
+      searchEverything,
+      openPath: jest.fn(),
+      startEverythingBackendRefresh: jest.fn(),
+      disposeEverythingSearch: jest.fn()
+    })
+    const ctx = {} as Context
+    const api = {
+      Log: jest.fn().mockResolvedValue(undefined),
+      OnUnload: jest.fn().mockResolvedValue(undefined)
+    }
+
+    await currentPlugin.init(ctx, {
+      API: api as never,
+      PluginDirectory: "C:\\Plugins\\Everything"
+    } as unknown as PluginInitParams)
+    api.Log.mockClear()
+
+    await currentPlugin.query(ctx, createQuery("test data"))
+
+    expect(api.Log).toHaveBeenCalledWith(ctx, "Info", expect.stringContaining('rawQuery="e test data" search="test data" searchLength=9'))
+    expect(api.Log).toHaveBeenCalledWith(ctx, "Info", expect.stringContaining('trigger="e" command=""'))
+    expect(api.Log).toHaveBeenCalledWith(ctx, "Info", expect.stringContaining("results=0"))
+  })
+
   test("returns an explanatory error result when Everything is unavailable", async () => {
     const searchEverything = jest.fn().mockRejectedValue(new Error("Everything unavailable"))
     const currentPlugin = createPlugin({ searchEverything, openPath: jest.fn() })

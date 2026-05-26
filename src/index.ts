@@ -61,15 +61,7 @@ function createResultIcon(entry: EverythingSearchResult): WoxImage {
   return createFileIcon()
 }
 
-async function logQueryDiagnostics(
-  api: PublicAPI | undefined,
-  ctx: Context,
-  search: string,
-  elapsedMs: number,
-  resultCount: number,
-  trace: EverythingSearchTrace,
-  errorMessage?: string
-): Promise<void> {
+async function logQueryDiagnostics(api: PublicAPI | undefined, ctx: Context, query: Query, elapsedMs: number, resultCount: number, trace: EverythingSearchTrace, errorMessage?: string): Promise<void> {
   if (!api) {
     return
   }
@@ -77,7 +69,11 @@ async function logQueryDiagnostics(
   const reason = errorMessage ? `error=${JSON.stringify(errorMessage)}` : `results=${resultCount}`
   const traceSummary = trace.events.length > 0 ? trace.events.join(" | ") : "none"
   const backend = trace.backend ?? "unknown"
-  await api.Log(ctx, errorMessage ? "Error" : "Info", `Everything query diagnostics search=${JSON.stringify(search)} elapsed=${elapsedMs}ms backend=${backend} ${reason} trace=${traceSummary}`)
+  await api.Log(
+    ctx,
+    errorMessage ? "Error" : "Info",
+    `Everything query diagnostics rawQuery=${JSON.stringify(query.RawQuery)} search=${JSON.stringify(query.Search)} searchLength=${query.Search.length} trigger=${JSON.stringify(query.TriggerKeyword ?? "")} command=${JSON.stringify(query.Command ?? "")} elapsed=${elapsedMs}ms backend=${backend} ${reason} trace=${traceSummary}`
+  )
 }
 
 export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
@@ -113,8 +109,8 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
       try {
         const entries = await deps.searchEverything(query.Search, DEFAULT_LIMIT, trace)
         const elapsedMs = Date.now() - startedAt
-        if (elapsedMs >= SLOW_QUERY_LOG_MS) {
-          await logQueryDiagnostics(api, ctx, query.Search, elapsedMs, entries.length, trace)
+        if (elapsedMs >= SLOW_QUERY_LOG_MS || entries.length === 0) {
+          await logQueryDiagnostics(api, ctx, query, elapsedMs, entries.length, trace)
         }
         return entries.map((entry: EverythingSearchResult, index: number) => ({
           Title: path.win32.basename(entry.path),
@@ -153,7 +149,7 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
         const message = error instanceof Error ? error.message : String(error)
         const elapsedMs = Date.now() - startedAt
         if (api) {
-          await logQueryDiagnostics(api, ctx, query.Search, elapsedMs, 0, trace, message)
+          await logQueryDiagnostics(api, ctx, query, elapsedMs, 0, trace, message)
           await api.Log(ctx, "Error", message)
         }
         return [createErrorResult(message)]
