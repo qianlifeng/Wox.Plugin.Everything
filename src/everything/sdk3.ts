@@ -14,7 +14,6 @@ interface Everything3Bindings {
   setSearchMatchCase: (searchState: unknown, enabled: boolean) => void
   setSearchMatchWholeWords: (searchState: unknown, enabled: boolean) => void
   setSearchMatchPath: (searchState: unknown, enabled: boolean) => void
-  setSearchRegex: (searchState: unknown, enabled: boolean) => void
   setSearchText: (searchState: unknown, text: string) => void
   setSearchViewportCount: (searchState: unknown, count: number) => void
   addSearchPropertyRequest: (searchState: unknown, propertyId: number) => void
@@ -79,7 +78,6 @@ function getBindings(dllPath: string): Everything3Bindings {
       setSearchMatchCase: library.func("void __stdcall Everything3_SetSearchMatchCase(void *searchState, bool enabled)"),
       setSearchMatchWholeWords: library.func("void __stdcall Everything3_SetSearchMatchWholeWords(void *searchState, bool enabled)"),
       setSearchMatchPath: library.func("void __stdcall Everything3_SetSearchMatchPath(void *searchState, bool enabled)"),
-      setSearchRegex: library.func("void __stdcall Everything3_SetSearchRegex(void *searchState, bool enabled)"),
       setSearchText: library.func("void __stdcall Everything3_SetSearchTextW(void *searchState, const char16_t *text)"),
       setSearchViewportCount: library.func("void __stdcall Everything3_SetSearchViewportCount(void *searchState, int count)"),
       addSearchPropertyRequest: library.func("void __stdcall Everything3_AddSearchPropertyRequest(void *searchState, int propertyId)"),
@@ -138,7 +136,6 @@ export async function searchWithSdk3(nativeDirectory: string, search: string, li
     bindings.setSearchMatchCase(searchState, false)
     bindings.setSearchMatchWholeWords(searchState, false)
     bindings.setSearchMatchPath(searchState, false)
-    bindings.setSearchRegex(searchState, false)
     bindings.setSearchText(searchState, search)
     if (limit > 0) {
       bindings.setSearchViewportCount(searchState, limit)
