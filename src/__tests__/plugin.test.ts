@@ -1,5 +1,5 @@
-import { Context, PluginInitParams, Query, WoxImage } from "@wox-launcher/wox-plugin"
-import { createPlugin } from "../index"
+import { Context, Plugin, PluginInitParams, Query, Result, WoxImage } from "@wox-launcher/wox-plugin"
+import { createPlugin, parseResultLimit } from "../index"
 
 function createQuery(search: string): Query {
   return {
@@ -17,6 +17,35 @@ function createQuery(search: string): Query {
   } as Query
 }
 
+function createApi(overrides: Record<string, unknown> = {}) {
+  return {
+    Log: jest.fn().mockResolvedValue(undefined),
+    OnUnload: jest.fn().mockResolvedValue(undefined),
+    GetSetting: jest.fn().mockResolvedValue("30"),
+    OnSettingChanged: jest.fn().mockResolvedValue(undefined),
+    ...overrides
+  }
+}
+
+async function queryResults(plugin: Plugin, ctx: Context, search: string): Promise<Result[]> {
+  const result = await plugin.query(ctx, createQuery(search))
+  return Array.isArray(result) ? result : result.Results
+}
+
+describe("parseResultLimit", () => {
+  test("parses valid limits and clamps extremes", () => {
+    expect(parseResultLimit("50")).toBe(50)
+    expect(parseResultLimit("1")).toBe(1)
+    expect(parseResultLimit("1000")).toBe(1000)
+    expect(parseResultLimit("1001")).toBe(1000)
+    expect(parseResultLimit("0")).toBe(30)
+    expect(parseResultLimit("-5")).toBe(30)
+    expect(parseResultLimit("abc")).toBe(30)
+    expect(parseResultLimit("")).toBe(30)
+    expect(parseResultLimit(undefined)).toBe(30)
+  })
+})
+
 describe("Everything plugin", () => {
   test("disposes loaded libraries on unload", async () => {
     const startEverythingBackendRefresh = jest.fn()
@@ -27,12 +56,11 @@ describe("Everything plugin", () => {
       disposeEverythingSearch
     })
     const ctx = {} as Context
-    const api = {
-      Log: jest.fn().mockResolvedValue(undefined),
+    const api = createApi({
       OnUnload: jest.fn().mockImplementation(async (_ctx, callback) => {
         onUnload.mockImplementation(callback)
       })
-    }
+    })
 
     await currentPlugin.init(ctx, {
       API: api as never,
@@ -41,6 +69,8 @@ describe("Everything plugin", () => {
 
     expect(startEverythingBackendRefresh).toHaveBeenCalled()
     expect(api.OnUnload).toHaveBeenCalled()
+    expect(api.GetSetting).toHaveBeenCalledWith(ctx, "result_limit")
+    expect(api.OnSettingChanged).toHaveBeenCalled()
 
     await onUnload(ctx)
 
@@ -53,7 +83,7 @@ describe("Everything plugin", () => {
     const currentPlugin = createPlugin({ searchEverything, openPath })
     const ctx = {} as Context
 
-    const results = await currentPlugin.query(ctx, createQuery(""))
+    const results = await queryResults(currentPlugin, ctx, "")
 
     expect(results).toEqual([])
     expect(searchEverything).not.toHaveBeenCalled()
@@ -71,7 +101,7 @@ describe("Everything plugin", () => {
     const currentPlugin = createPlugin({ searchEverything, openPath, openContainingFolder })
     const ctx = {} as Context
 
-    const results = await currentPlugin.query(ctx, createQuery("file"))
+    const results = await queryResults(currentPlugin, ctx, "file")
 
     expect(searchEverything).toHaveBeenCalledWith("file", 30, expect.objectContaining({ events: [] }))
     expect(results).toHaveLength(3)
@@ -124,6 +154,41 @@ describe("Everything plugin", () => {
     expect(openContainingFolder).toHaveBeenCalledWith("C:\\Docs\\file.txt")
   })
 
+  test("uses configured result limit from settings", async () => {
+    const searchEverything = jest.fn().mockResolvedValue([])
+    let settingChanged: ((ctx: Context, key: string, value: string) => Promise<void>) | undefined
+    const currentPlugin = createPlugin({
+      searchEverything,
+      openPath: jest.fn(),
+      startEverythingBackendRefresh: jest.fn(),
+      disposeEverythingSearch: jest.fn()
+    })
+    const ctx = {} as Context
+    const api = createApi({
+      GetSetting: jest.fn().mockResolvedValue("100"),
+      OnSettingChanged: jest.fn().mockImplementation(async (_ctx, callback) => {
+        settingChanged = callback
+      })
+    })
+
+    await currentPlugin.init(ctx, {
+      API: api as never,
+      PluginDirectory: "C:\\Plugins\\Everything"
+    } as unknown as PluginInitParams)
+
+    await queryResults(currentPlugin, ctx, "readme")
+    expect(searchEverything).toHaveBeenCalledWith("readme", 100, expect.objectContaining({ events: [] }))
+
+    if (!settingChanged) {
+      throw new Error("expected setting changed callback")
+    }
+    await settingChanged(ctx, "result_limit", "200")
+    searchEverything.mockClear()
+
+    await queryResults(currentPlugin, ctx, "readme")
+    expect(searchEverything).toHaveBeenCalledWith("readme", 200, expect.objectContaining({ events: [] }))
+  })
+
   test("logs diagnostics when Everything returns no results", async () => {
     const searchEverything = jest.fn().mockResolvedValue([])
     const currentPlugin = createPlugin({
@@ -133,10 +198,7 @@ describe("Everything plugin", () => {
       disposeEverythingSearch: jest.fn()
     })
     const ctx = {} as Context
-    const api = {
-      Log: jest.fn().mockResolvedValue(undefined),
-      OnUnload: jest.fn().mockResolvedValue(undefined)
-    }
+    const api = createApi()
 
     await currentPlugin.init(ctx, {
       API: api as never,
@@ -144,7 +206,7 @@ describe("Everything plugin", () => {
     } as unknown as PluginInitParams)
     api.Log.mockClear()
 
-    await currentPlugin.query(ctx, createQuery("test data"))
+    await queryResults(currentPlugin, ctx, "test data")
 
     expect(api.Log).toHaveBeenCalledWith(ctx, "Info", expect.stringContaining('rawQuery="e test data" search="test data" searchLength=9'))
     expect(api.Log).toHaveBeenCalledWith(ctx, "Info", expect.stringContaining('trigger="e" command=""'))
@@ -156,7 +218,7 @@ describe("Everything plugin", () => {
     const currentPlugin = createPlugin({ searchEverything, openPath: jest.fn() })
     const ctx = {} as Context
 
-    const results = await currentPlugin.query(ctx, createQuery("file"))
+    const results = await queryResults(currentPlugin, ctx, "file")
 
     expect(results).toHaveLength(1)
     expect(results[0]?.Title).toBe("i18n:search_error")

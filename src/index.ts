@@ -5,6 +5,8 @@ import { EverythingSearchResult } from "./everything/types"
 import { openContainingFolder, openPath } from "./open"
 
 const DEFAULT_LIMIT = 30
+const MAX_LIMIT = 1000
+const RESULT_LIMIT_SETTING_KEY = "result_limit"
 const SLOW_QUERY_LOG_MS = 150
 const IMAGE_THUMBNAIL_EXTENSIONS = new Set([".avif", ".bmp", ".gif", ".heic", ".heif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".tif", ".tiff", ".webp"])
 
@@ -14,6 +16,19 @@ interface PluginDeps {
   openContainingFolder: (targetPath: string) => Promise<void>
   startEverythingBackendRefresh: () => void
   disposeEverythingSearch: () => void
+}
+
+export function parseResultLimit(raw: string | undefined | null): number {
+  if (raw == null) {
+    return DEFAULT_LIMIT
+  }
+
+  const parsed = Number.parseInt(String(raw).trim(), 10)
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return DEFAULT_LIMIT
+  }
+
+  return Math.min(parsed, MAX_LIMIT)
 }
 
 function createErrorResult(message: string): Result {
@@ -78,6 +93,7 @@ async function logQueryDiagnostics(api: PublicAPI | undefined, ctx: Context, que
 
 export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
   let api: PublicAPI | undefined
+  let resultLimit = DEFAULT_LIMIT
   const deps: PluginDeps = {
     searchEverything,
     openPath,
@@ -92,11 +108,26 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
       api = initParams.API
       configureEverythingSearch(initParams.PluginDirectory)
       deps.startEverythingBackendRefresh()
+
+      try {
+        const rawLimit = await api.GetSetting(ctx, RESULT_LIMIT_SETTING_KEY)
+        resultLimit = parseResultLimit(rawLimit)
+      } catch {
+        resultLimit = DEFAULT_LIMIT
+      }
+
+      await api.OnSettingChanged(ctx, async (settingCtx: Context, key: string, value: string) => {
+        if (key === RESULT_LIMIT_SETTING_KEY) {
+          resultLimit = parseResultLimit(value)
+          await api?.Log(settingCtx, "Info", `Everything result limit updated to ${resultLimit}`)
+        }
+      })
+
       await api.OnUnload(ctx, async (unloadCtx: Context) => {
         deps.disposeEverythingSearch()
         await api?.Log(unloadCtx, "Info", "Everything plugin unloaded")
       })
-      await api.Log(ctx, "Info", "Everything plugin initialized")
+      await api.Log(ctx, "Info", `Everything plugin initialized resultLimit=${resultLimit}`)
     },
 
     query: async (ctx: Context, query: Query): Promise<Result[]> => {
@@ -107,7 +138,7 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
       const trace: EverythingSearchTrace = { events: [] }
       const startedAt = Date.now()
       try {
-        const entries = await deps.searchEverything(query.Search, DEFAULT_LIMIT, trace)
+        const entries = await deps.searchEverything(query.Search, resultLimit, trace)
         const elapsedMs = Date.now() - startedAt
         if (elapsedMs >= SLOW_QUERY_LOG_MS || entries.length === 0) {
           await logQueryDiagnostics(api, ctx, query, elapsedMs, entries.length, trace)

@@ -4,7 +4,7 @@
   "Name": "i18n:plugin_name",
   "Description": "i18n:plugin_description",
   "Author": "qianlifeng",
-  "Version": "0.1.1",
+  "Version": "0.1.2",
   "MinWoxVersion": "2.0.0",
   "Runtime": "nodejs",
   "Website": "https://github.com/qianlifeng/Wox.Plugin.Everything",
@@ -16,20 +16,53 @@
     }
   ],
   "SupportedOS": ["Windows"],
+  "SettingDefinitions": [
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "result_limit",
+        "Label": "i18n:result_limit",
+        "DefaultValue": "30",
+        "Tooltip": "i18n:result_limit_tooltip",
+        "Suffix": "",
+        "MaxLines": 1,
+        "Validators": [
+          {
+            "Type": "not_empty",
+            "Value": {}
+          },
+          {
+            "Type": "is_number",
+            "Value": {
+              "IsInteger": true,
+              "IsFloat": false
+            }
+          }
+        ],
+        "Style": {
+          "Width": 120
+        }
+      }
+    }
+  ],
   "I18n": {
     "en_US": {
       "plugin_name": "Everything",
       "plugin_description": "Search files with Everything on Windows",
       "open": "Open",
       "open_containing_folder": "Open Containing Folder",
-      "search_error": "Everything Search Error"
+      "search_error": "Everything Search Error",
+      "result_limit": "Max search results",
+      "result_limit_tooltip": "Maximum number of results returned for each search. Default is 30."
     },
     "zh_CN": {
       "plugin_name": "Everything",
       "plugin_description": "在 Windows 上使用 Everything 搜索文件",
       "open": "打开",
       "open_containing_folder": "打开所在文件夹",
-      "search_error": "Everything 搜索错误"
+      "search_error": "Everything 搜索错误",
+      "result_limit": "搜索结果数量上限",
+      "result_limit_tooltip": "每次搜索最多返回的结果数量，默认 30。"
     }
   }
 }
