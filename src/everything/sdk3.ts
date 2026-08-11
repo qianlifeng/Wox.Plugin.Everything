@@ -11,9 +11,9 @@ interface Everything3Bindings {
   destroyClient: (client: unknown) => void
   createSearchState: () => unknown
   destroySearchState: (searchState: unknown) => void
-  setSearchMatchCase: (searchState: unknown, enabled: boolean) => void
-  setSearchMatchWholeWords: (searchState: unknown, enabled: boolean) => void
-  setSearchMatchPath: (searchState: unknown, enabled: boolean) => void
+  setSearchMatchCase: (searchState: unknown, enabled: number) => void
+  setSearchMatchWholeWords: (searchState: unknown, enabled: number) => void
+  setSearchMatchPath: (searchState: unknown, enabled: number) => void
   setSearchText: (searchState: unknown, text: string) => void
   setSearchViewportCount: (searchState: unknown, count: number) => void
   addSearchPropertyRequest: (searchState: unknown, propertyId: number) => void
@@ -75,9 +75,9 @@ function getBindings(dllPath: string): Everything3Bindings {
       destroyClient: library.func("void __stdcall Everything3_DestroyClient(void *client)"),
       createSearchState: library.func("void * __stdcall Everything3_CreateSearchState(void)"),
       destroySearchState: library.func("void __stdcall Everything3_DestroySearchState(void *searchState)"),
-      setSearchMatchCase: library.func("void __stdcall Everything3_SetSearchMatchCase(void *searchState, bool enabled)"),
-      setSearchMatchWholeWords: library.func("void __stdcall Everything3_SetSearchMatchWholeWords(void *searchState, bool enabled)"),
-      setSearchMatchPath: library.func("void __stdcall Everything3_SetSearchMatchPath(void *searchState, bool enabled)"),
+      setSearchMatchCase: library.func("void __stdcall Everything3_SetSearchMatchCase(void *searchState, int enabled)"),
+      setSearchMatchWholeWords: library.func("void __stdcall Everything3_SetSearchMatchWholeWords(void *searchState, int enabled)"),
+      setSearchMatchPath: library.func("void __stdcall Everything3_SetSearchMatchPath(void *searchState, int enabled)"),
       setSearchText: library.func("void __stdcall Everything3_SetSearchTextW(void *searchState, const char16_t *text)"),
       setSearchViewportCount: library.func("void __stdcall Everything3_SetSearchViewportCount(void *searchState, int count)"),
       addSearchPropertyRequest: library.func("void __stdcall Everything3_AddSearchPropertyRequest(void *searchState, int propertyId)"),
@@ -133,9 +133,9 @@ export async function searchWithSdk3(nativeDirectory: string, search: string, li
   }
 
   try {
-    bindings.setSearchMatchCase(searchState, false)
-    bindings.setSearchMatchWholeWords(searchState, false)
-    bindings.setSearchMatchPath(searchState, false)
+    bindings.setSearchMatchCase(searchState, 0)
+    bindings.setSearchMatchWholeWords(searchState, 0)
+    bindings.setSearchMatchPath(searchState, 0)
     bindings.setSearchText(searchState, search)
     if (limit > 0) {
       bindings.setSearchViewportCount(searchState, limit)
