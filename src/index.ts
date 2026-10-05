@@ -14,6 +14,7 @@ interface PluginDeps {
   searchEverything: (search: string, limit: number, trace?: EverythingSearchTrace) => Promise<EverythingSearchResult[]>
   openPath: (targetPath: string) => Promise<void>
   openContainingFolder: (targetPath: string) => Promise<void>
+  browseInLauncher: (ctx: Context, queryText: string) => Promise<void>
   startEverythingBackendRefresh: () => void
   disposeEverythingSearch: () => void
 }
@@ -61,6 +62,15 @@ function createFolderIcon(): WoxImage {
   }
 }
 
+export function folderBrowseQuery(targetPath: string, isDirectory: boolean): string {
+  const folderPath = isDirectory ? targetPath : path.win32.dirname(targetPath)
+  if (folderPath.endsWith("\\") || folderPath.endsWith("/")) {
+    return folderPath
+  }
+
+  return `${folderPath}\\`
+}
+
 function createResultIcon(entry: EverythingSearchResult): WoxImage {
   if (entry.isDirectory) {
     return createFolderIcon()
@@ -98,6 +108,16 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
     searchEverything,
     openPath,
     openContainingFolder,
+    browseInLauncher: async (ctx: Context, queryText: string) => {
+      if (!api) {
+        throw new Error("Everything plugin is not initialized")
+      }
+
+      await api.ChangeQuery(ctx, {
+        QueryType: "input",
+        QueryText: queryText
+      })
+    },
     startEverythingBackendRefresh,
     disposeEverythingSearch,
     ...overrides
@@ -161,6 +181,18 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
               },
               Action: async (_actionCtx: Context, actionContext) => {
                 await deps.openPath(actionContext.ContextData.path)
+              }
+            },
+            {
+              Id: "browse-in-launcher",
+              Name: entry.isDirectory ? "i18n:enter_folder" : "i18n:browse_containing_folder",
+              Hotkey: "shift+enter",
+              PreventHideAfterAction: true,
+              ContextData: {
+                path: entry.path
+              },
+              Action: async (actionCtx: Context, actionContext) => {
+                await deps.browseInLauncher(actionCtx, folderBrowseQuery(String(actionContext.ContextData.path ?? ""), entry.isDirectory))
               }
             },
             {

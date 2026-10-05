@@ -1,5 +1,5 @@
 import { Context, Plugin, PluginInitParams, Query, Result, WoxImage } from "@wox-launcher/wox-plugin"
-import { createPlugin, parseResultLimit } from "../index"
+import { createPlugin, folderBrowseQuery, parseResultLimit } from "../index"
 
 function createQuery(search: string): Query {
   return {
@@ -31,6 +31,20 @@ async function queryResults(plugin: Plugin, ctx: Context, search: string): Promi
   const result = await plugin.query(ctx, createQuery(search))
   return Array.isArray(result) ? result : result.Results
 }
+
+describe("folderBrowseQuery", () => {
+  test("keeps a trailing separator and adds one when missing", () => {
+    expect(folderBrowseQuery("C:\\Projects", true)).toBe("C:\\Projects\\")
+    expect(folderBrowseQuery("C:\\Projects\\", true)).toBe("C:\\Projects\\")
+    expect(folderBrowseQuery("C:\\", true)).toBe("C:\\")
+    expect(folderBrowseQuery("\\\\server\\share", true)).toBe("\\\\server\\share\\")
+  })
+
+  test("browses a file from its parent directory", () => {
+    expect(folderBrowseQuery("C:\\Docs\\file.txt", false)).toBe("C:\\Docs\\")
+    expect(folderBrowseQuery("C:\\file.txt", false)).toBe("C:\\")
+  })
+})
 
 describe("parseResultLimit", () => {
   test("parses valid limits and clamps extremes", () => {
@@ -152,6 +166,47 @@ describe("Everything plugin", () => {
 
     expect(openContainingFolderAction.Name).toBe("i18n:open_containing_folder")
     expect(openContainingFolder).toHaveBeenCalledWith("C:\\Docs\\file.txt")
+  })
+
+  test("shift+enter browses the folder or a file's parent inside the launcher", async () => {
+    const searchEverything = jest.fn().mockResolvedValue([
+      { path: "C:\\Docs\\file.txt", isDirectory: false },
+      { path: "C:\\Docs\\Folder", isDirectory: true }
+    ])
+    const browseInLauncher = jest.fn().mockResolvedValue(undefined)
+    const currentPlugin = createPlugin({
+      searchEverything,
+      openPath: jest.fn(),
+      openContainingFolder: jest.fn(),
+      browseInLauncher
+    })
+    const ctx = {} as Context
+
+    const results = await queryResults(currentPlugin, ctx, "docs")
+    const fileBrowseAction = results[0]?.Actions?.find(action => action.Hotkey?.toLowerCase() === "shift+enter")
+    const folderBrowseAction = results[1]?.Actions?.find(action => action.Hotkey?.toLowerCase() === "shift+enter")
+    if (!fileBrowseAction || !("Action" in fileBrowseAction) || !folderBrowseAction || !("Action" in folderBrowseAction)) {
+      throw new Error("expected browse actions")
+    }
+
+    expect(fileBrowseAction.Name).toBe("i18n:browse_containing_folder")
+    expect(fileBrowseAction.PreventHideAfterAction).toBe(true)
+    expect(folderBrowseAction.Name).toBe("i18n:enter_folder")
+    expect(folderBrowseAction.PreventHideAfterAction).toBe(true)
+
+    await fileBrowseAction.Action(ctx, {
+      ResultId: "1",
+      ResultActionId: fileBrowseAction.Id ?? "browse-in-launcher",
+      ContextData: fileBrowseAction.ContextData ?? {}
+    })
+    await folderBrowseAction.Action(ctx, {
+      ResultId: "2",
+      ResultActionId: folderBrowseAction.Id ?? "browse-in-launcher",
+      ContextData: folderBrowseAction.ContextData ?? {}
+    })
+
+    expect(browseInLauncher).toHaveBeenNthCalledWith(1, ctx, "C:\\Docs\\")
+    expect(browseInLauncher).toHaveBeenNthCalledWith(2, ctx, "C:\\Docs\\Folder\\")
   })
 
   test("uses configured result limit from settings", async () => {
