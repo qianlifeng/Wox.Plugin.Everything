@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@wox-launcher/wox-plugin':
-        specifier: ^0.0.141
-        version: 0.0.141
+        specifier: 0.0.144
+        version: 0.0.144
       koffi:
         specifier: ^2.14.1
         version: 2.16.1
@@ -913,8 +913,8 @@ packages:
     resolution: {integrity: sha512-8LwjnlP39s08C08J5NstzriPvW1SP8Zfpp1BvC2sI35kPeZnHfxVkCwu4/+Wodgnd60UtT1n8K8zw+Mp7J9JmQ==}
     hasBin: true
 
-  '@wox-launcher/wox-plugin@0.0.141':
-    resolution: {integrity: sha512-/22dvIr5eePMMML83rbdhJBom8dJd9vT/7Cy3pEzMqK83L7JsmhnIZ4baIjy51QpMmWbItzxBBsRobEN1DbOpA==}
+  '@wox-launcher/wox-plugin@0.0.144':
+    resolution: {integrity: sha512-CH/Qvkryma/gkjub6YhTGuP7+xHDA1Z2FaQUgJZeNgBfk7NATJddI8mUknD801CVuJ/UMQvS5AW5bBy0QXnQcQ==}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -3288,7 +3288,7 @@ snapshots:
 
   '@vercel/ncc@0.38.4': {}
 
-  '@wox-launcher/wox-plugin@0.0.141': {}
+  '@wox-launcher/wox-plugin@0.0.144': {}
 
   acorn-jsx@5.3.2(acorn@8.16.0):
     dependencies:
