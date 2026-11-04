@@ -121,6 +121,7 @@ describe("Everything plugin", () => {
     expect(results).toHaveLength(3)
     expect(results[0]?.Title).toBe("file.txt")
     expect(results[0]?.SubTitle).toBe("C:\\Docs\\file.txt")
+    expect(results[0]?.IdentityKey).toBe("C:\\Docs\\file.txt")
     expect(results[0]?.Score).toBeGreaterThan(results[1]?.Score ?? 0)
     expect(results[0]?.Icon).toEqual({
       ImageType: "emoji",
