@@ -166,6 +166,7 @@ export function createPlugin(overrides: Partial<PluginDeps> = {}): Plugin {
         return entries.map((entry: EverythingSearchResult, index: number) => ({
           Title: path.win32.basename(entry.path),
           SubTitle: entry.path,
+          IdentityKey: entry.path,
           Score: entries.length - index,
           Icon: createResultIcon(entry),
           ContextData: {

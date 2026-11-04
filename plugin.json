@@ -12,11 +12,7 @@
   "Website": "https://github.com/qianlifeng/Wox.Plugin.Everything",
   "Entry": "index.js",
   "Icon": "relative:images/app.png",
-  "Features": [
-    {
-      "Name": "ignoreAutoScore"
-    }
-  ],
+  "Features": [],
   "SupportedOS": [
     "Windows"
   ],
