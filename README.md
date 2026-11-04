@@ -8,7 +8,6 @@ Windows Wox plugin that searches files through Everything APIs.
 wpm install Everything
 ```
 
-
 # Note
 
 The latest version of Wox already supports same indexing speeds comparable to Everything, and it is recommended to prioritize using Wox's built-in `file plugin` (use f to trigger) to search for files.

@@ -1,21 +1,17 @@
 {
   "Id": "6987b7b1-89da-41ef-bab3-d1ba2e3daba0",
-  "TriggerKeywords": [
-    "e"
-  ],
+  "TriggerKeywords": ["e"],
   "Name": "i18n:plugin_name",
   "Description": "i18n:plugin_description",
   "Author": "qianlifeng",
-  "Version": "0.0.14",
-  "MinWoxVersion": "2.0.0",
+  "Version": "0.1.4",
+  "MinWoxVersion": "2.4.9",
   "Runtime": "nodejs",
   "Website": "https://github.com/qianlifeng/Wox.Plugin.Everything",
   "Entry": "index.js",
   "Icon": "relative:images/app.png",
   "Features": [],
-  "SupportedOS": [
-    "Windows"
-  ],
+  "SupportedOS": ["Windows"],
   "SettingDefinitions": [
     {
       "Type": "textbox",
