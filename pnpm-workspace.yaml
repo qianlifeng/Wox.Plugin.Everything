@@ -1,4 +1,4 @@
 allowBuilds:
   koffi: true
 minimumReleaseAgeExclude:
-  - '@wox-launcher/wox-plugin@0.0.141 || 0.0.144 || 0.0.146 || 0.0.148'
+  - '@wox-launcher/wox-plugin@0.0.141 || 0.0.144 || 0.0.146 || 0.0.148 || 0.0.149'
